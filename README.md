@@ -23,3 +23,9 @@ make
 
 - ##### Format the shellcode
     Run `xxd -i encmeter.bin` then replace everything between line 10-60 with the output
+
+## Dependencies
+
+```
+sudo apt install mingw-w64 nasm
+```
