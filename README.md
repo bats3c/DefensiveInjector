@@ -2,7 +2,7 @@
 
 The code for the shellcode injector from my blog post.
 
-This code is a PoC and will probly only run of windows 10 x64 version 1909, this is because of the syscall numbers changing between versions. To fix, change the syscall number of line 16 in `syscalls.c` with the corresponding number for that windows version. They can be found [here](https://j00ru.vexillium.org/syscalls/nt/64/).
+This code is a PoC and will probly only run of windows 10 x64 version 1909, this is because of the syscall numbers changing between versions. To fix, change the syscall number of line 16 in `syscalls.asm` with the corresponding number for that windows version. They can be found [here](https://j00ru.vexillium.org/syscalls/nt/64/).
 
 ## Install & Build
 
